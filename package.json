@@ -4,6 +4,7 @@
   "description": "2Ymentanance - Asset Maintenance System Backend API",
   "main": "dist/index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
