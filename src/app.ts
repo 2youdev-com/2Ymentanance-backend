@@ -16,14 +16,19 @@ import usersRoutes from './routes/users.routes';
 
 const app = express();
 
-// ── Security ───────────────────────────────────────────
-app.use(helmet());
-app.use(cors({
+const corsOptions = {
   origin: env.ALLOWED_ORIGINS,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+
+// ── Handle preflight before everything ────────────────
+app.options('*', cors(corsOptions));
+
+// ── Security ───────────────────────────────────────────
+app.use(helmet());
+app.use(cors(corsOptions));
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
