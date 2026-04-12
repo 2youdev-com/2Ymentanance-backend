@@ -16,6 +16,9 @@ import usersRoutes from './routes/users.routes';
 
 const app = express();
 
+// ── Trust Vercel proxy ─────────────────────────────────
+app.set('trust proxy', 1);
+
 const corsOptions = {
   origin: env.ALLOWED_ORIGINS,
   credentials: true,
