@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+   directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  TECHNICIAN
+  VIEWER
+  ADMIN
+}
+
+enum AssetType {
+  CHILLER
+  AHU
+  ELEVATOR
+  ELECTRICAL_PANEL
+  GENERATOR
+  FIRE_PUMP
+  FCU
+  UPS
+  PRECISION_COOLING
+  COOLING_TOWER
+  AUTO_TRANSFER_SWITCH
+  FIRE_SUPPRESSION
+  POWER_DISTRIBUTION
+  OTHER
+}
+
+enum AssetStatus {
+  OPERATIONAL
+  NEEDS_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+}
+
+enum ChecklistResult {
+  PASS
+  FAIL
+  NA
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ProblemCategory {
+  OVERHEATING
+  UNUSUAL_NOISE
+  WATER_LEAK
+  ELECTRICAL_FAULT
+  SENSOR_FAILURE
+  PHYSICAL_DAMAGE
+  PRESSURE_DROP
+  MECHANICAL_JAM
+  BATTERY_FAILURE
+  FILTER_CLOGGED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  createdAt DateTime @default(now())
+
+  assets    Asset[]
+  userSites UserSite[]
+
+  @@map("sites")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         Role     @default(TECHNICIAN)
+  photoUrl     String?  @map("photo_url")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sites            UserSite[]
+  maintenanceLogs  MaintenanceLog[]
+  registeredAssets Asset[]          @relation("AssetCreator")
+
+  @@map("users")
+}
+
+model UserSite {
+  userId String @map("user_id")
+  siteId String @map("site_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@id([userId, siteId])
+  @@map("user_sites")
+}
+
+model Asset {
+  id                  String      @id @default(cuid())
+  qrUuid              String      @unique @map("qr_uuid")
+  type                AssetType
+  name                String
+  model               String
+  serialNumber        String      @map("serial_number")
+  assetNumber         String      @map("asset_number")
+  building            String?
+  floor               String?
+  zone                String?
+  status              AssetStatus @default(OPERATIONAL)
+  photoUrl            String?     @map("photo_url")
+  remarks             String?
+  lastPreventiveDate  DateTime?   @map("last_preventive_date")
+  lastCorrectiveDate  DateTime?   @map("last_corrective_date")
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  siteId    String @map("site_id")
+  createdBy String @map("created_by")
+
+  site             Site             @relation(fields: [siteId], references: [id])
+  creator          User             @relation("AssetCreator", fields: [createdBy], references: [id])
+  maintenanceLogs  MaintenanceLog[]
+
+  @@map("assets")
+}
+
+model MaintenanceLog {
+  id          String          @id @default(cuid())
+  type        MaintenanceType
+  startedAt   DateTime        @default(now()) @map("started_at")
+  completedAt DateTime?       @map("completed_at")
+  personPhoto String?         @map("person_photo")
+  status      String          @default("IN_PROGRESS")
+  createdAt   DateTime        @default(now())
+
+  assetId      String @map("asset_id")
+  technicianId String @map("technician_id")
+
+  asset        Asset           @relation(fields: [assetId], references: [id])
+  technician   User            @relation(fields: [technicianId], references: [id])
+  checklistItems ChecklistItem[]
+  machinePhotos  MachinePhoto[]
+  problemReport  ProblemReport?
+
+  @@map("maintenance_logs")
+}
+
+model ChecklistItem {
+  id          String          @id @default(cuid())
+  itemCode    String          @map("item_code")
+  description String
+  result      ChecklistResult
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  logId String @map("log_id")
+  log   MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@map("checklist_items")
+}
+
+model MachinePhoto {
+  id        String   @id @default(cuid())
+  url       String
+  createdAt DateTime @default(now())
+
+  logId String         @map("log_id")
+  log   MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@map("machine_photos")
+}
+
+model ProblemReport {
+  id          String          @id @default(cuid())
+  category    ProblemCategory
+  severity    Severity
+  description String
+  videoUrl    String?         @map("video_url")
+  audioUrl    String?         @map("audio_url")
+  submittedAt DateTime        @default(now()) @map("submitted_at")
+  resolved    Boolean         @default(false)
+
+  logId   String @unique @map("log_id")
+  assetId String @map("asset_id")
+
+  log   MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  extraPhotos ExtraPhoto[]
+
+  @@map("problem_reports")
+}
+
+model ExtraPhoto {
+  id        String   @id @default(cuid())
+  url       String
+  createdAt DateTime @default(now())
+
+  reportId String        @map("report_id")
+  report   ProblemReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("extra_photos")
+}
