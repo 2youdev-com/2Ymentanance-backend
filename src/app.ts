@@ -23,15 +23,12 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: (origin: string | undefined, callback: any) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true);
-
     const isAllowed =
       allowedOrigins.includes(origin) ||
       /^https:\/\/2ymentanance-dashboard-.*\.vercel\.app$/.test(origin);
-
     if (isAllowed) return callback(null, true);
-
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -39,9 +36,12 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-app.use(helmet());
-app.use(cors(corsOptions));
+// ── OPTIONS قبل أي حاجة ────────────────────────────────
 app.options('*', cors(corsOptions));
+
+// ── Security ───────────────────────────────────────────
+app.use(cors(corsOptions));
+app.use(helmet());
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
