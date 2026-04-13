@@ -2,7 +2,6 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { env } from './config/env';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
 import authRoutes from './routes/auth.routes';
@@ -16,22 +15,33 @@ import usersRoutes from './routes/users.routes';
 
 const app = express();
 
-// ── Trust Vercel proxy ─────────────────────────────────
 app.set('trust proxy', 1);
 
+const allowedOrigins = [
+  'https://2ymentanance-dashboard.vercel.app',
+  'http://localhost:5173',
+];
+
 const corsOptions = {
-  origin: env.ALLOWED_ORIGINS,
+  origin: (origin: string | undefined, callback: any) => {
+    if (!origin) return callback(null, true);
+
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      /^https:\/\/2ymentanance-dashboard-.*\.vercel\.app$/.test(origin);
+
+    if (isAllowed) return callback(null, true);
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// ── Handle preflight before everything ────────────────
-app.options('*', cors(corsOptions));
-
-// ── Security ───────────────────────────────────────────
 app.use(helmet());
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -48,27 +58,22 @@ const authLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-
-// ── Body parsing ───────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── Health check ───────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({ success: true, status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
 
-// ── Routes ─────────────────────────────────────────────
-app.use('/api/auth',        authLimiter, authRoutes);
-app.use('/api/assets',      assetsRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/assets', assetsRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
-app.use('/api/reports',     reportsRoutes);
-app.use('/api/sites',       sitesRoutes);
-app.use('/api/activity',    activityRoutes);
-app.use('/api/checklists',  checklistsRoutes);
-app.use('/api/users',       usersRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/sites', sitesRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/checklists', checklistsRoutes);
+app.use('/api/users', usersRoutes);
 
-// ── Error handling ─────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
 
