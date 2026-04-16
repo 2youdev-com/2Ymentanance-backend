@@ -6,6 +6,16 @@ import { uploadToCloudinary } from '../middleware/upload';
 import { getIO } from '../utils/socket';
 import { Prisma } from '@prisma/client';
 
+function emitActivitySafely(siteId: string, payload: Record<string, unknown>) {
+  try {
+    const io = getIO();
+    if (!io) return;
+    io.to(`site:${siteId}`).emit('activity', payload);
+  } catch (error: any) {
+    console.warn('Socket.io not available:', error?.message || error);
+  }
+}
+
 export const startMaintenance = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { assetId, type } = req.body;
 
@@ -24,7 +34,7 @@ export const startMaintenance = asyncHandler(async (req: Request, res: Response)
     },
   });
 
-  getIO().to(`site:${asset.siteId}`).emit('activity', {
+  emitActivitySafely(asset.siteId, {
     type: 'MAINTENANCE_STARTED',
     assetId: asset.id,
     assetName: asset.name,
@@ -48,7 +58,6 @@ export const submitChecklist = asyncHandler(async (req: Request, res: Response):
     throw new AppError('You can only submit your own checklists', 403);
   }
 
-  // Upload machine photos
   const machinePhotoUrls: string[] = [];
   if (files?.machinePhotos) {
     for (const file of files.machinePhotos) {
@@ -57,7 +66,6 @@ export const submitChecklist = asyncHandler(async (req: Request, res: Response):
     }
   }
 
-  // Upload person selfie
   let personPhotoUrl: string | undefined;
   if (files?.personPhoto?.[0]) {
     personPhotoUrl = await uploadToCloudinary(files.personPhoto[0].buffer, 'person-photos', 'image');
@@ -128,7 +136,7 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
     await tx.asset.update({ where: { id: log.assetId }, data: assetUpdateData });
   });
 
-  getIO().to(`site:${log.asset.siteId}`).emit('activity', {
+  emitActivitySafely(log.asset.siteId, {
     type: 'MAINTENANCE_COMPLETED',
     assetId: log.asset.id,
     assetName: log.asset.name,
