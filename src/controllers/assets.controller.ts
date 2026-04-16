@@ -170,6 +170,50 @@ export const updateAsset = asyncHandler(async (req: Request, res: Response): Pro
   res.json({ success: true, data: updated });
 });
 
+export const deleteAsset = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  const asset = await prisma.asset.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      siteId: true,
+    },
+  });
+
+  if (!asset) {
+    throw new AppError('Asset not found', 404);
+  }
+
+  if (req.user!.role !== 'ADMIN' && !req.user!.siteIds.includes(asset.siteId)) {
+    throw new AppError('You are not authorized to delete this asset', 403);
+  }
+
+  try {
+    await prisma.asset.delete({
+      where: { id },
+    });
+  } catch (err: any) {
+    if (err?.code === 'P2003') {
+      throw new AppError(
+        'Cannot delete asset because it is linked to maintenance records or related data',
+        400
+      );
+    }
+    throw err;
+  }
+
+  res.json({
+    success: true,
+    message: 'Asset deleted successfully',
+    data: {
+      id: asset.id,
+      name: asset.name,
+    },
+  });
+});
+
 export const getDashboardStats = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { siteId } = req.query;
 

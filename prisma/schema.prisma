@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-   directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────
@@ -118,8 +118,8 @@ model Asset {
   type                AssetType
   name                String
   model               String
-  serialNumber        String      @map("serial_number")
-  assetNumber         String      @map("asset_number")
+  serialNumber        String      @unique @map("serial_number")
+  assetNumber         String      @unique @map("asset_number")
   building            String?
   floor               String?
   zone                String?
@@ -134,9 +134,9 @@ model Asset {
   siteId    String @map("site_id")
   createdBy String @map("created_by")
 
-  site             Site             @relation(fields: [siteId], references: [id])
-  creator          User             @relation("AssetCreator", fields: [createdBy], references: [id])
-  maintenanceLogs  MaintenanceLog[]
+  site            Site             @relation(fields: [siteId], references: [id])
+  creator         User             @relation("AssetCreator", fields: [createdBy], references: [id])
+  maintenanceLogs MaintenanceLog[]
 
   @@map("assets")
 }
@@ -153,8 +153,8 @@ model MaintenanceLog {
   assetId      String @map("asset_id")
   technicianId String @map("technician_id")
 
-  asset        Asset           @relation(fields: [assetId], references: [id])
-  technician   User            @relation(fields: [technicianId], references: [id])
+  asset          Asset           @relation(fields: [assetId], references: [id])
+  technician     User            @relation(fields: [technicianId], references: [id])
   checklistItems ChecklistItem[]
   machinePhotos  MachinePhoto[]
   problemReport  ProblemReport?
