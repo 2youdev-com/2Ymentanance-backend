@@ -12,6 +12,9 @@ import sitesRoutes from './routes/sites.routes';
 import activityRoutes from './routes/activity.routes';
 import checklistsRoutes from './routes/checklists.routes';
 import usersRoutes from './routes/users.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import exportRoutes from './routes/export.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
 const app = express();
 
@@ -73,6 +76,9 @@ app.use('/api/sites', sitesRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/checklists', checklistsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
