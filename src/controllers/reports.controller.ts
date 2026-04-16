@@ -41,7 +41,10 @@ export const createProblemReport = asyncHandler(async (req: Request, res: Respon
     }
   }
 
-  const newStatus = severity === 'CRITICAL' || severity === 'HIGH' ? 'OUT_OF_SERVICE' : 'NEEDS_MAINTENANCE';
+  const newStatus =
+    severity === 'CRITICAL' || severity === 'HIGH'
+      ? 'OUT_OF_SERVICE'
+      : 'NEEDS_MAINTENANCE';
 
   const report = await prisma.$transaction(async (tx) => {
     const created = await tx.problemReport.create({
@@ -58,20 +61,30 @@ export const createProblemReport = asyncHandler(async (req: Request, res: Respon
       include: { extraPhotos: true },
     });
 
-    await tx.asset.update({ where: { id: log.assetId }, data: { status: newStatus } });
+    await tx.asset.update({
+      where: { id: log.assetId },
+      data: { status: newStatus },
+    });
 
     return created;
   });
 
-  getIO().to(`site:${log.asset.siteId}`).emit('activity', {
-    type: 'PROBLEM_REPORTED',
-    assetId: log.asset.id,
-    assetName: log.asset.name,
-    technicianName: log.technician.fullName,
-    siteId: log.asset.siteId,
-    timestamp: new Date(),
-    details: `Problem reported: ${category} - ${severity}`,
-  });
+  try {
+    const io = getIO();
+    if (io) {
+      io.to(`site:${log.asset.siteId}`).emit('activity', {
+        type: 'PROBLEM_REPORTED',
+        assetId: log.asset.id,
+        assetName: log.asset.name,
+        technicianName: log.technician.fullName,
+        siteId: log.asset.siteId,
+        timestamp: new Date(),
+        details: `Problem reported: ${category} - ${severity}`,
+      });
+    }
+  } catch (error: any) {
+    console.warn('Socket.io not available:', error?.message || error);
+  }
 
   res.status(201).json({ success: true, data: report });
 });
@@ -114,7 +127,9 @@ export const getProblemReports = asyncHandler(async (req: Request, res: Response
     success: true,
     data: reports,
     pagination: {
-      total, page: Number(page), limit: Number(limit),
+      total,
+      page: Number(page),
+      limit: Number(limit),
       pages: Math.ceil(total / Number(limit)),
     },
   });

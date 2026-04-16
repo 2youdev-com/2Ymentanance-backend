@@ -122,9 +122,10 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
 
   const hasFailedItems = log.checklistItems.some((item) => item.result === 'FAIL');
 
-  const assetUpdateData: Prisma.AssetUpdateInput = log.type === 'PREVENTIVE'
-    ? { lastPreventiveDate: new Date() }
-    : { lastCorrectiveDate: new Date() };
+  const assetUpdateData: Prisma.AssetUpdateInput =
+    log.type === 'PREVENTIVE'
+      ? { lastPreventiveDate: new Date() }
+      : { lastCorrectiveDate: new Date() };
 
   if (hasFailedItems) assetUpdateData.status = 'NEEDS_MAINTENANCE';
 
@@ -193,7 +194,9 @@ export const getMaintenanceLogs = asyncHandler(async (req: Request, res: Respons
     success: true,
     data: logs,
     pagination: {
-      total, page: Number(page), limit: Number(limit),
+      total,
+      page: Number(page),
+      limit: Number(limit),
       pages: Math.ceil(total / Number(limit)),
     },
   });

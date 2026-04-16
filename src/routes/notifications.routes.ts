@@ -4,20 +4,16 @@ import { prisma } from '../config/database';
 import { getIO } from '../utils/socket';
 import { uploadToCloudinary } from '../middleware/upload';
 import { upload } from '../middleware/upload';
-import { Prisma } from '@prisma/client';
 
 const router = Router();
 router.use(authenticate);
 
-// POST /api/notifications/quick-report
-// Submit a quick problem report WITHOUT a maintenance log
-// Solves the gap: technician sees a problem while passing by (no active maintenance)
 router.post(
   '/quick-report',
   upload.fields([
     { name: 'photos', maxCount: 5 },
-    { name: 'video',  maxCount: 1 },
-    { name: 'audio',  maxCount: 1 },
+    { name: 'video', maxCount: 1 },
+    { name: 'audio', maxCount: 1 },
   ]),
   async (req, res, next) => {
     try {
@@ -25,7 +21,10 @@ router.post(
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       if (!assetId || !category || !severity || !description) {
-        res.status(400).json({ success: false, error: 'assetId, category, severity, description required' });
+        res.status(400).json({
+          success: false,
+          error: 'assetId, category, severity, description required',
+        });
         return;
       }
 
@@ -33,12 +32,12 @@ router.post(
         where: { id: assetId },
         include: { site: true },
       });
+
       if (!asset) {
         res.status(404).json({ success: false, error: 'Asset not found' });
         return;
       }
 
-      // Auto-create a corrective maintenance log as container
       const autoLog = await prisma.maintenanceLog.create({
         data: {
           assetId,
@@ -48,7 +47,6 @@ router.post(
         },
       });
 
-      // Upload media
       let videoUrl: string | undefined;
       let audioUrl: string | undefined;
       const extraPhotoUrls: string[] = [];
@@ -56,9 +54,11 @@ router.post(
       if (files?.video?.[0]) {
         videoUrl = await uploadToCloudinary(files.video[0].buffer, 'problem-videos', 'video');
       }
+
       if (files?.audio?.[0]) {
         audioUrl = await uploadToCloudinary(files.audio[0].buffer, 'problem-audio', 'video');
       }
+
       if (files?.photos) {
         for (const file of files.photos) {
           const url = await uploadToCloudinary(file.buffer, 'problem-photos', 'image');
@@ -67,7 +67,9 @@ router.post(
       }
 
       const newStatus =
-        severity === 'CRITICAL' || severity === 'HIGH' ? 'OUT_OF_SERVICE' : 'NEEDS_MAINTENANCE';
+        severity === 'CRITICAL' || severity === 'HIGH'
+          ? 'OUT_OF_SERVICE'
+          : 'NEEDS_MAINTENANCE';
 
       const report = await prisma.$transaction(async (tx) => {
         const created = await tx.problemReport.create({
@@ -94,15 +96,22 @@ router.post(
         return created;
       });
 
-      getIO().to(`site:${asset.siteId}`).emit('activity', {
-        type: 'PROBLEM_REPORTED',
-        assetId: asset.id,
-        assetName: asset.name,
-        technicianName: req.user!.username,
-        siteId: asset.siteId,
-        timestamp: new Date(),
-        details: `Quick report: ${category} - ${severity}`,
-      });
+      try {
+        const io = getIO();
+        if (io) {
+          io.to(`site:${asset.siteId}`).emit('activity', {
+            type: 'PROBLEM_REPORTED',
+            assetId: asset.id,
+            assetName: asset.name,
+            technicianName: req.user!.username,
+            siteId: asset.siteId,
+            timestamp: new Date(),
+            details: `Quick report: ${category} - ${severity}`,
+          });
+        }
+      } catch (error: any) {
+        console.warn('Socket.io not available:', error?.message || error);
+      }
 
       res.status(201).json({ success: true, data: report });
     } catch (err) {
