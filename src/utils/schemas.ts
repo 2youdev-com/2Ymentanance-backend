@@ -13,11 +13,20 @@ export const createAssetSchema = z.object({
   body: z.object({
     qrUuid: z.string().min(1, 'QR UUID is required'),
     type: z.enum([
-      'CHILLER', 'AHU', 'ELEVATOR', 'ELECTRICAL_PANEL',
-      'GENERATOR', 'FIRE_PUMP', 'FCU', 'UPS',
-      'PRECISION_COOLING', 'COOLING_TOWER',
-      'AUTO_TRANSFER_SWITCH', 'FIRE_SUPPRESSION',
-      'POWER_DISTRIBUTION', 'OTHER',
+      'CHILLER',
+      'AHU',
+      'ELEVATOR',
+      'ELECTRICAL_PANEL',
+      'GENERATOR',
+      'FIRE_PUMP',
+      'FCU',
+      'UPS',
+      'PRECISION_COOLING',
+      'COOLING_TOWER',
+      'AUTO_TRANSFER_SWITCH',
+      'FIRE_SUPPRESSION',
+      'POWER_DISTRIBUTION',
+      'OTHER',
     ]),
     name: z.string().min(1, 'Asset name is required'),
     model: z.string().min(1, 'Model is required'),
@@ -28,8 +37,16 @@ export const createAssetSchema = z.object({
     zone: z.string().optional(),
     status: z.enum(['OPERATIONAL', 'NEEDS_MAINTENANCE', 'OUT_OF_SERVICE']).optional(),
     remarks: z.string().optional(),
-    lastPreventiveDate: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
-    lastCorrectiveDate: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
+    lastPreventiveDate: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .or(z.string().date().optional()),
+    lastCorrectiveDate: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .or(z.string().date().optional()),
     siteId: z.string().min(1, 'Site ID is required'),
   }),
 });
@@ -70,17 +87,32 @@ export const startMaintenanceSchema = z.object({
 });
 
 export const submitChecklistSchema = z.object({
+  params: z.object({
+    logId: z.string().min(1, 'logId is required'),
+  }),
   body: z.object({
-    items: z
-      .array(
-        z.object({
-          itemCode: z.string().min(1),
-          description: z.string().min(1),
-          result: z.enum(['PASS', 'FAIL', 'NA']),
-          notes: z.string().optional(),
-        })
-      )
-      .min(1, 'At least one checklist item is required'),
+    items: z.preprocess(
+      (value) => {
+        if (typeof value === 'string') {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        }
+        return value;
+      },
+      z
+        .array(
+          z.object({
+            itemCode: z.string().min(1, 'itemCode is required'),
+            description: z.string().min(1, 'description is required'),
+            result: z.enum(['PASS', 'FAIL', 'NA']),
+            notes: z.string().optional(),
+          })
+        )
+        .min(1, 'At least one checklist item is required')
+    ),
   }),
 });
 
@@ -102,9 +134,16 @@ export const createReportSchema = z.object({
   body: z.object({
     logId: z.string().min(1, 'Log ID is required'),
     category: z.enum([
-      'OVERHEATING', 'UNUSUAL_NOISE', 'WATER_LEAK',
-      'ELECTRICAL_FAULT', 'SENSOR_FAILURE', 'PHYSICAL_DAMAGE',
-      'PRESSURE_DROP', 'MECHANICAL_JAM', 'BATTERY_FAILURE', 'FILTER_CLOGGED',
+      'OVERHEATING',
+      'UNUSUAL_NOISE',
+      'WATER_LEAK',
+      'ELECTRICAL_FAULT',
+      'SENSOR_FAILURE',
+      'PHYSICAL_DAMAGE',
+      'PRESSURE_DROP',
+      'MECHANICAL_JAM',
+      'BATTERY_FAILURE',
+      'FILTER_CLOGGED',
     ]),
     severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
     description: z.string().min(10, 'Description must be at least 10 characters'),
