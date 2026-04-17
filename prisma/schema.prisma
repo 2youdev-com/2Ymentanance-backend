@@ -8,8 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── Enums ───────────────────────────────────────────────
-
 enum Role {
   TECHNICIAN
   VIEWER
@@ -69,8 +67,6 @@ enum ProblemCategory {
   BATTERY_FAILURE
   FILTER_CLOGGED
 }
-
-// ─── Models ──────────────────────────────────────────────
 
 model Site {
   id        String   @id @default(cuid())
@@ -137,6 +133,7 @@ model Asset {
   site            Site             @relation(fields: [siteId], references: [id])
   creator         User             @relation("AssetCreator", fields: [createdBy], references: [id])
   maintenanceLogs MaintenanceLog[]
+  problemReports  ProblemReport[]
 
   @@map("assets")
 }
@@ -153,7 +150,7 @@ model MaintenanceLog {
   assetId      String @map("asset_id")
   technicianId String @map("technician_id")
 
-  asset          Asset           @relation(fields: [assetId], references: [id])
+  asset          Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
   technician     User            @relation(fields: [technicianId], references: [id])
   checklistItems ChecklistItem[]
   machinePhotos  MachinePhoto[]
@@ -201,6 +198,7 @@ model ProblemReport {
   assetId String @map("asset_id")
 
   log   MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  asset Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   extraPhotos ExtraPhoto[]
 

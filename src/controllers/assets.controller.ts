@@ -11,11 +11,21 @@ export const getAssets = asyncHandler(async (req: Request, res: Response): Promi
   const where: Prisma.AssetWhereInput = {};
 
   if (req.user!.role !== 'ADMIN') {
-    where.siteId = { in: req.user!.siteIds };
+    if (siteId) {
+      if (!req.user!.siteIds.includes(siteId as string)) {
+        throw new AppError('You are not authorized to access assets for this site', 403);
+      }
+      where.siteId = siteId as string;
+    } else {
+      where.siteId = { in: req.user!.siteIds };
+    }
+  } else if (siteId) {
+    where.siteId = siteId as string;
   }
-  if (siteId) where.siteId = siteId as string;
+
   if (type) where.type = type as Prisma.EnumAssetTypeFilter;
   if (status) where.status = status as AssetStatus;
+
   if (search) {
     where.OR = [
       { name: { contains: search as string, mode: 'insensitive' } },
@@ -123,10 +133,18 @@ export const createAsset = asyncHandler(async (req: Request, res: Response): Pro
 
   const asset = await prisma.asset.create({
     data: {
-      qrUuid, type, name, model, serialNumber, assetNumber,
-      building, floor, zone,
+      qrUuid,
+      type,
+      name,
+      model,
+      serialNumber,
+      assetNumber,
+      building,
+      floor,
+      zone,
       status: (status as AssetStatus) || 'OPERATIONAL',
-      photoUrl, remarks,
+      photoUrl,
+      remarks,
       lastPreventiveDate: lastPreventiveDate ? new Date(lastPreventiveDate) : null,
       lastCorrectiveDate: lastCorrectiveDate ? new Date(lastCorrectiveDate) : null,
       siteId,
@@ -160,69 +178,41 @@ export const updateAsset = asyncHandler(async (req: Request, res: Response): Pro
     data: {
       ...updateFields,
       photoUrl,
-      lastPreventiveDate: updateFields.lastPreventiveDate
-        ? new Date(updateFields.lastPreventiveDate) : undefined,
-      lastCorrectiveDate: updateFields.lastCorrectiveDate
-        ? new Date(updateFields.lastCorrectiveDate) : undefined,
+      lastPreventiveDate:
+        updateFields.lastPreventiveDate === ''
+          ? null
+          : updateFields.lastPreventiveDate
+            ? new Date(updateFields.lastPreventiveDate)
+            : undefined,
+      lastCorrectiveDate:
+        updateFields.lastCorrectiveDate === ''
+          ? null
+          : updateFields.lastCorrectiveDate
+            ? new Date(updateFields.lastCorrectiveDate)
+            : undefined,
     },
   });
 
   res.json({ success: true, data: updated });
 });
 
-export const deleteAsset = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
-
-  const asset = await prisma.asset.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      siteId: true,
-    },
-  });
-
-  if (!asset) {
-    throw new AppError('Asset not found', 404);
-  }
-
-  if (req.user!.role !== 'ADMIN' && !req.user!.siteIds.includes(asset.siteId)) {
-    throw new AppError('You are not authorized to delete this asset', 403);
-  }
-
-  try {
-    await prisma.asset.delete({
-      where: { id },
-    });
-  } catch (err: any) {
-    if (err?.code === 'P2003') {
-      throw new AppError(
-        'Cannot delete asset because it is linked to maintenance records or related data',
-        400
-      );
-    }
-    throw err;
-  }
-
-  res.json({
-    success: true,
-    message: 'Asset deleted successfully',
-    data: {
-      id: asset.id,
-      name: asset.name,
-    },
-  });
-});
-
 export const getDashboardStats = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { siteId } = req.query;
 
-  const siteFilter: Prisma.AssetWhereInput =
-    siteId
-      ? { siteId: siteId as string }
-      : req.user!.role !== 'ADMIN'
-      ? { siteId: { in: req.user!.siteIds } }
-      : {};
+  let siteFilter: Prisma.AssetWhereInput = {};
+
+  if (req.user!.role !== 'ADMIN') {
+    if (siteId) {
+      if (!req.user!.siteIds.includes(siteId as string)) {
+        throw new AppError('You are not authorized to access dashboard stats for this site', 403);
+      }
+      siteFilter = { siteId: siteId as string };
+    } else {
+      siteFilter = { siteId: { in: req.user!.siteIds } };
+    }
+  } else if (siteId) {
+    siteFilter = { siteId: siteId as string };
+  }
 
   const now = new Date();
   const weekStart = new Date(now);
@@ -244,4 +234,32 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
     success: true,
     data: { totalAssets, needsMaintenance, completedThisWeek, openReports },
   });
+});
+
+export const deleteAsset = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  if (req.user!.role !== 'ADMIN') {
+    throw new AppError('Only admins can delete assets', 403);
+  }
+
+  const asset = await prisma.asset.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!asset) {
+    throw new AppError('Asset not found', 404);
+  }
+
+  try {
+    await prisma.asset.delete({
+      where: { id },
+    });
+
+    res.json({ success: true, message: 'Asset deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete asset error:', error);
+    throw new AppError(error?.message || 'Failed to delete asset', 500);
+  }
 });

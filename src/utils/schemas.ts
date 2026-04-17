@@ -83,6 +83,7 @@ export const startMaintenanceSchema = z.object({
   body: z.object({
     assetId: z.string().min(1, 'Asset ID is required'),
     type: z.enum(['PREVENTIVE', 'CORRECTIVE']),
+    technicianId: z.string().min(1).optional(),
   }),
 });
 

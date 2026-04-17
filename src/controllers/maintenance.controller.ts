@@ -6,18 +6,8 @@ import { uploadToCloudinary } from '../middleware/upload';
 import { getIO } from '../utils/socket';
 import { Prisma } from '@prisma/client';
 
-function emitActivitySafely(siteId: string, payload: Record<string, unknown>) {
-  try {
-    const io = getIO();
-    if (!io) return;
-    io.to(`site:${siteId}`).emit('activity', payload);
-  } catch (error: any) {
-    console.warn('Socket.io not available:', error?.message || error);
-  }
-}
-
 export const startMaintenance = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { assetId, type } = req.body;
+  const { assetId, type, technicianId: bodyTechnicianId } = req.body;
 
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
   if (!asset) throw new AppError('Asset not found', 404);
@@ -26,15 +16,21 @@ export const startMaintenance = asyncHandler(async (req: Request, res: Response)
     throw new AppError('You are not authorized to access this asset', 403);
   }
 
+  // ADMIN can assign to any technician via body.technicianId; others always use themselves
+  const resolvedTechnicianId =
+    req.user!.role === 'ADMIN' && bodyTechnicianId
+      ? bodyTechnicianId
+      : req.user!.userId;
+
   const log = await prisma.maintenanceLog.create({
-    data: { assetId, technicianId: req.user!.userId, type, status: 'IN_PROGRESS' },
+    data: { assetId, technicianId: resolvedTechnicianId, type, status: 'IN_PROGRESS' },
     include: {
       asset: { select: { id: true, name: true, siteId: true } },
       technician: { select: { id: true, fullName: true } },
     },
   });
 
-  emitActivitySafely(asset.siteId, {
+  getIO().to(`site:${asset.siteId}`).emit('activity', {
     type: 'MAINTENANCE_STARTED',
     assetId: asset.id,
     assetName: asset.name,
@@ -58,6 +54,7 @@ export const submitChecklist = asyncHandler(async (req: Request, res: Response):
     throw new AppError('You can only submit your own checklists', 403);
   }
 
+  // Upload machine photos
   const machinePhotoUrls: string[] = [];
   if (files?.machinePhotos) {
     for (const file of files.machinePhotos) {
@@ -66,6 +63,7 @@ export const submitChecklist = asyncHandler(async (req: Request, res: Response):
     }
   }
 
+  // Upload person selfie
   let personPhotoUrl: string | undefined;
   if (files?.personPhoto?.[0]) {
     personPhotoUrl = await uploadToCloudinary(files.personPhoto[0].buffer, 'person-photos', 'image');
@@ -122,10 +120,9 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
 
   const hasFailedItems = log.checklistItems.some((item) => item.result === 'FAIL');
 
-  const assetUpdateData: Prisma.AssetUpdateInput =
-    log.type === 'PREVENTIVE'
-      ? { lastPreventiveDate: new Date() }
-      : { lastCorrectiveDate: new Date() };
+  const assetUpdateData: Prisma.AssetUpdateInput = log.type === 'PREVENTIVE'
+    ? { lastPreventiveDate: new Date() }
+    : { lastCorrectiveDate: new Date() };
 
   if (hasFailedItems) assetUpdateData.status = 'NEEDS_MAINTENANCE';
 
@@ -137,7 +134,7 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
     await tx.asset.update({ where: { id: log.assetId }, data: assetUpdateData });
   });
 
-  emitActivitySafely(log.asset.siteId, {
+  getIO().to(`site:${log.asset.siteId}`).emit('activity', {
     type: 'MAINTENANCE_COMPLETED',
     assetId: log.asset.id,
     assetName: log.asset.name,
@@ -194,9 +191,7 @@ export const getMaintenanceLogs = asyncHandler(async (req: Request, res: Respons
     success: true,
     data: logs,
     pagination: {
-      total,
-      page: Number(page),
-      limit: Number(limit),
+      total, page: Number(page), limit: Number(limit),
       pages: Math.ceil(total / Number(limit)),
     },
   });

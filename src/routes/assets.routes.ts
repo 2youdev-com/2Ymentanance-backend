@@ -1,14 +1,9 @@
 import { Router } from 'express';
 import {
-  getAssets,
-  getAssetById,
-  getAssetByQr,
-  createAsset,
-  updateAsset,
-  getDashboardStats,
-  deleteAsset,
+  getAssets, getAssetById, getAssetByQr,
+  createAsset, updateAsset, deleteAsset, getDashboardStats,
 } from '../controllers/assets.controller';
-import { authenticate, requireRole } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { createAssetSchema, updateAssetSchema, getAssetsQuerySchema } from '../utils/schemas';
 import { upload } from '../middleware/upload';
@@ -23,6 +18,6 @@ router.get('/', validate(getAssetsQuerySchema), getAssets);
 router.get('/:id', getAssetById);
 router.post('/', upload.single('photo'), validate(createAssetSchema), createAsset);
 router.patch('/:id', upload.single('photo'), validate(updateAssetSchema), updateAsset);
-router.delete('/:id', requireRole('ADMIN'), deleteAsset);
+router.delete('/:id', deleteAsset);
 
 export default router;

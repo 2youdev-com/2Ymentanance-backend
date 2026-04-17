@@ -1,5 +1,44 @@
 import { Request, Response, NextFunction } from 'express';
 
+const FIELD_LABELS: Record<string, string> = {
+  assetNumber: 'Asset Number',
+  serialNumber: 'Serial Number',
+  qrUuid: 'QR UUID',
+  name: 'Asset Name',
+  username: 'Username',
+  email: 'Email',
+};
+
+function toReadableFieldName(field: string) {
+  if (FIELD_LABELS[field]) return FIELD_LABELS[field];
+  return field
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function buildDuplicateRecordMessage(req: Request, err: Error) {
+  const target = (err as { meta?: { target?: string[] | string } }).meta?.target;
+  const fields = Array.isArray(target) ? target : target ? [target] : [];
+
+  if (fields.length === 0) {
+    return 'A record with the same data already exists.';
+  }
+
+  const duplicates = fields.map(field => {
+    const value = req.body?.[field];
+    return value
+      ? `${toReadableFieldName(field)} "${value}"`
+      : toReadableFieldName(field);
+  });
+
+  if (duplicates.length === 1) {
+    return `${duplicates[0]} already exists.`;
+  }
+
+  return `These values already exist: ${duplicates.join(', ')}.`;
+}
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -19,14 +58,14 @@ export const notFound = (req: Request, res: Response) => {
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
   console.error('[2Ymentanance Error]', err.message);
 
   if ((err as { code?: string }).code === 'P2002') {
-    res.status(409).json({ success: false, error: 'Record already exists' }); return;
+    res.status(409).json({ success: false, error: buildDuplicateRecordMessage(req, err) }); return;
   }
   if ((err as { code?: string }).code === 'P2025') {
     res.status(404).json({ success: false, error: 'Record not found' }); return;
