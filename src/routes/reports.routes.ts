@@ -6,7 +6,6 @@ import {
 import { authenticate, requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { createReportSchema } from '../utils/schemas';
-import { upload } from '../middleware/upload';
 
 const router = Router();
 
@@ -17,11 +16,8 @@ router.get('/:id', getProblemReportById);
 router.post(
   '/',
   requireRole('TECHNICIAN', 'ADMIN'),
-  upload.fields([
-    { name: 'video', maxCount: 1 },
-    { name: 'audio', maxCount: 1 },
-    { name: 'extraPhotos', maxCount: 10 },
-  ]),
+  // No multer here — media is uploaded directly to Cloudinary from the client.
+  // The request is plain JSON containing the resulting secure_url strings.
   validate(createReportSchema),
   createProblemReport
 );

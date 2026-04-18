@@ -148,6 +148,18 @@ export const createReportSchema = z.object({
     ]),
     severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
     description: z.string().min(10, 'Description must be at least 10 characters'),
+    // Client uploads media directly to Cloudinary and sends back the secure URLs
+    videoUrl: z.string().url().optional(),
+    audioUrl: z.string().url().optional(),
+    extraPhotoUrls: z
+      .union([z.string(), z.array(z.string().url())])
+      .optional()
+      .transform((v) => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        // single string from multipart field
+        return [v];
+      }),
   }),
 });
 

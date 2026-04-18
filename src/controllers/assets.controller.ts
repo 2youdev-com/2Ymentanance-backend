@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { uploadToCloudinary } from '../middleware/upload';
 import { AssetStatus, Prisma } from '@prisma/client';
 
 export const getAssets = asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -126,10 +125,8 @@ export const createAsset = asyncHandler(async (req: Request, res: Response): Pro
     throw new AppError('You are not authorized to register assets at this site', 403);
   }
 
-  let photoUrl: string | undefined;
-  if (req.file) {
-    photoUrl = await uploadToCloudinary(req.file.buffer, 'assets', 'image');
-  }
+  // Photo is uploaded directly to Cloudinary by the client; we receive the URL
+  const photoUrl: string | undefined = req.body.photoUrl ?? undefined;
 
   const asset = await prisma.asset.create({
     data: {
@@ -166,10 +163,8 @@ export const updateAsset = asyncHandler(async (req: Request, res: Response): Pro
     throw new AppError('You are not authorized to update this asset', 403);
   }
 
-  let photoUrl = asset.photoUrl;
-  if (req.file) {
-    photoUrl = await uploadToCloudinary(req.file.buffer, 'assets', 'image');
-  }
+  // Photo is uploaded directly to Cloudinary by the client; we receive the URL
+  const photoUrl = req.body.photoUrl ?? asset.photoUrl;
 
   const { siteId: _siteId, qrUuid: _qrUuid, createdBy: _createdBy, ...updateFields } = req.body;
 

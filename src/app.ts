@@ -15,6 +15,7 @@ import usersRoutes from './routes/users.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import exportRoutes from './routes/export.routes';
 import notificationsRoutes from './routes/notifications.routes';
+import uploadRoutes from './routes/upload.routes';
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

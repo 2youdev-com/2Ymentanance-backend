@@ -2,13 +2,11 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { uploadToCloudinary } from '../middleware/upload';
 import { getIO } from '../utils/socket';
 import { Prisma } from '@prisma/client';
 
 export const createProblemReport = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { logId, category, severity, description } = req.body;
-  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  const { logId, category, severity, description, videoUrl, audioUrl, extraPhotoUrls = [] } = req.body;
 
   const log = await prisma.maintenanceLog.findUnique({
     where: { id: logId },
@@ -23,23 +21,12 @@ export const createProblemReport = asyncHandler(async (req: Request, res: Respon
   const existing = await prisma.problemReport.findUnique({ where: { logId } });
   if (existing) throw new AppError('A problem report already exists for this log', 409);
 
-  let videoUrl: string | undefined;
-  if (files?.video?.[0]) {
-    videoUrl = await uploadToCloudinary(files.video[0].buffer, 'problem-videos', 'video');
-  }
-
-  let audioUrl: string | undefined;
-  if (files?.audio?.[0]) {
-    audioUrl = await uploadToCloudinary(files.audio[0].buffer, 'problem-audio', 'video');
-  }
-
-  const extraPhotoUrls: string[] = [];
-  if (files?.extraPhotos) {
-    for (const file of files.extraPhotos) {
-      const url = await uploadToCloudinary(file.buffer, 'problem-photos', 'image');
-      extraPhotoUrls.push(url);
-    }
-  }
+  // Normalise extraPhotoUrls — Zod already coerces it but guard at runtime too
+  const photoUrls: string[] = Array.isArray(extraPhotoUrls)
+    ? extraPhotoUrls
+    : extraPhotoUrls
+    ? [extraPhotoUrls]
+    : [];
 
   const newStatus =
     severity === 'CRITICAL' || severity === 'HIGH'
@@ -54,9 +41,9 @@ export const createProblemReport = asyncHandler(async (req: Request, res: Respon
         category,
         severity,
         description,
-        videoUrl,
-        audioUrl,
-        extraPhotos: { create: extraPhotoUrls.map((url) => ({ url })) },
+        videoUrl: videoUrl ?? null,
+        audioUrl: audioUrl ?? null,
+        extraPhotos: { create: photoUrls.map((url: string) => ({ url })) },
       },
       include: { extraPhotos: true },
     });
