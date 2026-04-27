@@ -102,6 +102,7 @@ router.post('/technician', authenticate, async (req: Request, res: Response) => 
       faceMatched: result.faceMatched,
       similarity: result.similarity,
       status: result.status,
+      videoUrl: selfieVideoUrl,
     };
 
     await prisma.maintenanceLog.update({
@@ -199,6 +200,7 @@ router.post('/asset', authenticate, async (req: Request, res: Response) => {
       visualMatch: result.visualMatch,
       confidence: result.confidence,
       status: result.status,
+      videoUrl: assetVideoUrl,
     };
 
     await prisma.maintenanceLog.update({
