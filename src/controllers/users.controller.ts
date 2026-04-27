@@ -3,6 +3,24 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { uploadToCloudinary } from '../middleware/upload';
+
+export const updateProfilePhoto = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  
+  if (!req.file) {
+    throw new AppError('No photo provided', 400);
+  }
+
+  const photoUrl = await uploadToCloudinary(req.file.buffer, 'profile-photos', 'image');
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { photoUrl },
+  });
+
+  res.json({ success: true, data: { photoUrl } });
+});
 
 export const getUsers = asyncHandler(async (_req: Request, res: Response): Promise<void> => {
   const users = await prisma.user.findMany({

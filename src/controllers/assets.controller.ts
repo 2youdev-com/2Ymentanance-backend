@@ -127,6 +127,10 @@ export const createAsset = asyncHandler(async (req: Request, res: Response): Pro
 
   // Photo is uploaded directly to Cloudinary by the client; we receive the URL
   const photoUrl: string | undefined = req.body.photoUrl ?? undefined;
+  
+  if (!photoUrl) {
+    throw new AppError('Asset photo is required to register an asset', 400);
+  }
 
   const asset = await prisma.asset.create({
     data: {

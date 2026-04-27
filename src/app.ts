@@ -16,6 +16,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import exportRoutes from './routes/export.routes';
 import notificationsRoutes from './routes/notifications.routes';
 import uploadRoutes from './routes/upload.routes';
+import verificationRoutes from './routes/verification';
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/verification', verificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

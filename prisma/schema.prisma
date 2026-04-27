@@ -144,8 +144,10 @@ model MaintenanceLog {
   startedAt   DateTime        @default(now()) @map("started_at")
   completedAt DateTime?       @map("completed_at")
   personPhoto String?         @map("person_photo")
-  status      String          @default("IN_PROGRESS")
-  createdAt   DateTime        @default(now())
+  status                 String          @default("IN_PROGRESS")
+  technicianVerification Json?           @map("technician_verification")
+  assetVerification      Json?           @map("asset_verification")
+  createdAt              DateTime        @default(now())
 
   assetId      String @map("asset_id")
   technicianId String @map("technician_id")
