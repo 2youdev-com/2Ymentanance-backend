@@ -142,7 +142,8 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
   }
 
   if (log.status === 'COMPLETED') {
-    throw new AppError('Maintenance already completed', 400);
+    res.json({ success: true, message: 'Maintenance already completed' });
+    return;
   }
 
   // 1. Ensure checklist was submitted OR a problem was reported

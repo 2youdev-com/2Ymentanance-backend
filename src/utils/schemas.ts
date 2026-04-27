@@ -148,13 +148,14 @@ export const createReportSchema = z.object({
       'FILTER_CLOGGED',
     ]),
     severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-    description: z.string().min(10, 'Description must be at least 10 characters'),
+    description: z.string().min(1, 'Description is required'),
     // Client uploads media directly to Cloudinary and sends back the secure URLs
-    videoUrl: z.string().url().optional(),
-    audioUrl: z.string().url().optional(),
+    videoUrl: z.string().url().optional().nullable(),
+    audioUrl: z.string().url().optional().nullable(),
     extraPhotoUrls: z
       .union([z.string(), z.array(z.string().url())])
       .optional()
+      .nullable()
       .transform((v) => {
         if (!v) return [];
         if (Array.isArray(v)) return v;
