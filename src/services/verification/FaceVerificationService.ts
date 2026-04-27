@@ -39,6 +39,8 @@ export interface IFaceVerificationProvider {
   verify(input: FaceVerificationInput): Promise<FaceVerificationResult>;
   /** Returns 3 random liveness actions for the current session */
   getRandomActions(): LivenessAction[];
+  /** Returns true if the provider is fully configured and ready to verify */
+  isConfigured(): boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,6 +67,11 @@ export class MockFaceVerificationProvider implements IFaceVerificationProvider {
   getRandomActions(): LivenessAction[] {
     const shuffled = [...ALL_ACTIONS].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
+  }
+
+  isConfigured(): boolean {
+    // Mock is "configured" in dev for testing, but can be forced off in production if needed
+    return true; 
   }
 
   async verify(_input: FaceVerificationInput): Promise<FaceVerificationResult> {
@@ -126,6 +133,10 @@ export class AwsFaceVerificationProvider implements IFaceVerificationProvider {
   getRandomActions(): LivenessAction[] {
     const shuffled = [...ALL_ACTIONS].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
+  }
+
+  isConfigured(): boolean {
+    return this.client !== null;
   }
 
   async verify(input: FaceVerificationInput): Promise<FaceVerificationResult> {
@@ -266,6 +277,10 @@ export class FaceVerificationService {
 
   getRandomActions(): LivenessAction[] {
     return this.provider.getRandomActions();
+  }
+
+  isConfigured(): boolean {
+    return this.provider.isConfigured();
   }
 
   async verify(input: FaceVerificationInput): Promise<FaceVerificationResult> {

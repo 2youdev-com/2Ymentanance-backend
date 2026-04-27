@@ -125,6 +125,7 @@ export const getMaintenanceLogsQuerySchema = z.object({
     technicianId: z.string().optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
+    status: z.enum(['IN_PROGRESS', 'COMPLETED']).optional(),
     page: z.string().regex(/^\d+$/).optional(),
     limit: z.string().regex(/^\d+$/).optional(),
   }),

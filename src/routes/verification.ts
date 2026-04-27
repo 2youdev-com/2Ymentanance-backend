@@ -30,7 +30,8 @@ const assetService = AssetVerificationService.getInstance();
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/face-liveness-actions', authenticate, (_req: Request, res: Response) => {
   const actions = faceService.getRandomActions();
-  res.json({ success: true, data: { actions } });
+  const isConfigured = faceService.isConfigured();
+  res.json({ success: true, data: { actions, isConfigured } });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

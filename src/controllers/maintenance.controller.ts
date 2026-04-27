@@ -131,6 +131,7 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
       asset: true,
       technician: { select: { fullName: true } },
       checklistItems: true,
+      problemReport: true,
     },
   });
 
@@ -144,14 +145,28 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Maintenance already completed', 400);
   }
 
-  const hasFailedItems = log.checklistItems.some(item => item.result === 'FAIL');
+  // 1. Ensure checklist was submitted
+  if (log.checklistItems.length === 0) {
+    throw new AppError('Checklist must be submitted before completing maintenance', 400);
+  }
 
-  const assetUpdateData: Prisma.AssetUpdateInput =
-    log.type === 'PREVENTIVE'
+  // 2. Block completion if AI verification failed
+  const techVerif = log.technicianVerification as any;
+  const assetVerif = log.assetVerification as any;
+  if (techVerif?.status === 'FAILED' || assetVerif?.status === 'FAILED') {
+    throw new AppError('Maintenance cannot be completed with failed verification results', 400);
+  }
+
+  const hasFailedItems = log.checklistItems.some((item) => item.result === 'FAIL');
+  const hasProblemReport = !!log.problemReport;
+
+  const assetUpdateData: Prisma.AssetUpdateInput = {
+    // Asset needs maintenance if items failed OR a problem was manually reported
+    status: hasFailedItems || hasProblemReport ? 'NEEDS_MAINTENANCE' : 'OPERATIONAL',
+    ...(log.type === 'PREVENTIVE'
       ? { lastPreventiveDate: new Date() }
-      : { lastCorrectiveDate: new Date() };
-
-  if (hasFailedItems) assetUpdateData.status = 'NEEDS_MAINTENANCE';
+      : { lastCorrectiveDate: new Date() }),
+  };
 
   await prisma.$transaction(async tx => {
     await tx.maintenanceLog.update({
@@ -179,12 +194,12 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
 });
 
 export const getMaintenanceLogs = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { siteId, assetId, type, technicianId, dateFrom, dateTo, page = '1', limit = '20' } = req.query;
-
+  const { siteId, assetId, type, status, technicianId, dateFrom, dateTo, page = '1', limit = '20' } = req.query;
   const where: Prisma.MaintenanceLogWhereInput = {};
 
   if (assetId) where.assetId = assetId as string;
   if (type) where.type = type as Prisma.EnumMaintenanceTypeFilter;
+  if (status) where.status = status as string;
   if (technicianId) where.technicianId = technicianId as string;
 
   if (dateFrom || dateTo) {
