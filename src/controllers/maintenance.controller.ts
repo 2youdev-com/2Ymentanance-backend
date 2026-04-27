@@ -145,9 +145,9 @@ export const completeMaintenance = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Maintenance already completed', 400);
   }
 
-  // 1. Ensure checklist was submitted
-  if (log.checklistItems.length === 0) {
-    throw new AppError('Checklist must be submitted before completing maintenance', 400);
+  // 1. Ensure checklist was submitted OR a problem was reported
+  if (log.checklistItems.length === 0 && !log.problemReport) {
+    throw new AppError('Checklist must be submitted or a problem reported before completing maintenance', 400);
   }
 
   // 2. Block completion if AI verification failed

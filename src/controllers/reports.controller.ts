@@ -18,8 +18,15 @@ export const createProblemReport = asyncHandler(async (req: Request, res: Respon
     throw new AppError('You can only submit reports for your own maintenance logs', 403);
   }
 
-  const existing = await prisma.problemReport.findUnique({ where: { logId } });
-  if (existing) throw new AppError('A problem report already exists for this log', 409);
+  const existing = await prisma.problemReport.findUnique({
+    where: { logId },
+    include: { extraPhotos: true },
+  });
+  if (existing) {
+    // If it already exists, consider it a success to allow the flow to continue (idempotency)
+    res.status(200).json({ success: true, data: existing });
+    return;
+  }
 
   // Normalise extraPhotoUrls — Zod already coerces it but guard at runtime too
   const photoUrls: string[] = Array.isArray(extraPhotoUrls)
