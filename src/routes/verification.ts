@@ -72,7 +72,7 @@ router.post('/technician', authenticate, async (req: Request, res: Response) => 
       });
     }
 
-    if (!log.technician.photoUrl) {
+    if (!log.technician.photoUrl && process.env.FACE_VERIFICATION_PROVIDER !== 'mock') {
       // No profile photo → cannot verify
       const result = {
         livenessPassed: false,
@@ -92,7 +92,7 @@ router.post('/technician', authenticate, async (req: Request, res: Response) => 
     // Run verification
     const result = await faceService.verify({
       frames: resolvedFrames,
-      profilePhotoUrl: log.technician.photoUrl,
+      profilePhotoUrl: log.technician.photoUrl || '',
       requestedActions: requestedActions as any[],
     });
 
