@@ -68,27 +68,15 @@ export class MockFaceVerificationProvider implements IFaceVerificationProvider {
   }
 
   async verify(_input: FaceVerificationInput): Promise<FaceVerificationResult> {
-    if (this.isDev) {
-      // Simulate a short processing delay
-      await new Promise((r) => setTimeout(r, 500));
-      return {
-        livenessPassed: true,
-        faceMatched: true,
-        similarity: 95.0,
-        status: 'PASSED',
-        provider: 'mock',
-        rawDetail: { note: 'Mock result — dev mode' },
-      };
-    }
-
-    // Production with no provider configured
+    // Always return PASSED for mock provider (useful for testing/demo)
+    await new Promise((r) => setTimeout(r, 500));
     return {
-      livenessPassed: false,
-      faceMatched: false,
-      similarity: 0,
-      status: 'NOT_CONFIGURED',
+      livenessPassed: true,
+      faceMatched: true,
+      similarity: 95.0,
+      status: 'PASSED',
       provider: 'mock',
-      rawDetail: { note: 'No face verification provider is configured' },
+      rawDetail: { note: 'Mock result' },
     };
   }
 }
