@@ -217,3 +217,17 @@ model ExtraPhoto {
 
   @@map("extra_photos")
 }
+
+model AIActionLog {
+  id                 String   @id @default(cuid())
+  userId             String   @map("user_id")
+  userRole           String   @map("user_role")
+  prompt             String
+  toolName           String?  @map("tool_name")
+  toolInput          Json?    @map("tool_input")
+  toolOutputSummary  String?  @map("tool_output_summary")
+  status             String   @default("SUCCESS")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@map("ai_action_logs")
+}

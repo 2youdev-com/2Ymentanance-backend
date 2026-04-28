@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -17,6 +20,7 @@ import exportRoutes from './routes/export.routes';
 import notificationsRoutes from './routes/notifications.routes';
 import uploadRoutes from './routes/upload.routes';
 import verificationRoutes from './routes/verification';
+import assistantRoutes from './routes/assistant.routes';
 
 const app = express();
 
@@ -83,6 +87,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
