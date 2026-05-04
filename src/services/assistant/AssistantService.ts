@@ -1,6 +1,6 @@
 import { AssistantTools } from './AssistantTools';
 import { Role } from '@prisma/client';
-import { GeminiProvider, GeminiIntent } from './gemini.provider';
+import { DeepSeekProvider, DeepSeekIntent } from './Deepseek.provider';
 
 export interface AssistantContext {
   assetId?: string;
@@ -17,7 +17,7 @@ type AssistantResponse = {
   message: string;
   data?: any;
   toolName?: string;
-  provider?: 'gemini';
+  provider?: 'deepseek';
   confidence?: number;
 };
 
@@ -30,36 +30,35 @@ const ALLOWED_TOOLS = new Set([
   'getHighSeverityProblems',
   'getSiteMaintenanceSummary',
   'getRecentMaintenanceRecords',
+  'getDashboardStats',
+  'getAssetsByStatus',
+  'getAssetsByType',
+  'getMaintenanceByDateRange',
+  'getTechnicianPerformance',
+  'getChecklistSummary',
   'generalAnswer',
 ]);
 
 export class AssistantService {
   private tools: AssistantTools;
-  private gemini: GeminiProvider;
+  private deepseek: DeepSeekProvider;
 
   constructor(userId: string, userRole: Role) {
     this.tools = new AssistantTools(userId, userRole);
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    const aiMode = process.env.AI_MODE;
-    const aiProvider = process.env.AI_PROVIDER;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
 
     console.log('AI CONFIG:', {
-      aiMode,
-      aiProvider,
-      hasGeminiKey: !!apiKey,
-      geminiModel: process.env.GEMINI_MODEL,
+      provider: 'deepseek',
+      hasDeepSeekKey: !!apiKey,
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
     });
 
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is missing. Assistant cannot run without Gemini.');
+      throw new Error('DEEPSEEK_API_KEY is missing. Assistant cannot run without DeepSeek.');
     }
 
-    if (aiMode !== 'gemini' && aiProvider !== 'gemini') {
-      throw new Error('AI_MODE or AI_PROVIDER must be set to gemini.');
-    }
-
-    this.gemini = new GeminiProvider(apiKey);
+    this.deepseek = new DeepSeekProvider(apiKey);
   }
 
   async processMessage(
@@ -72,89 +71,68 @@ export class AssistantService {
     if (!cleanMessage) {
       return {
         message: 'من فضلك اكتب سؤالك.',
-        provider: 'gemini',
-      };
-    }
-
-    const mathAnswer = this.trySolveSimpleMath(cleanMessage);
-
-    if (mathAnswer) {
-      return {
-        message: mathAnswer,
-        toolName: 'generalAnswer',
-        provider: 'gemini',
+        provider: 'deepseek',
       };
     }
 
     try {
-      return await this.processWithGemini(cleanMessage, context, history);
+      return await this.processWithDeepSeek(cleanMessage, context, history);
     } catch (error) {
-      console.error('Gemini assistant failed:', error);
+      console.error('DeepSeek assistant failed:', error);
 
       return {
-        message:
-          'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي. تأكد من إعداد Gemini API Key وأن الخدمة تعمل بشكل صحيح.',
+        message: 'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي. تأكد من إعداد DeepSeek API Key وأن الخدمة تعمل بشكل صحيح.',
         toolName: 'generalAnswer',
-        provider: 'gemini',
+        provider: 'deepseek',
       };
     }
   }
 
-  private async processWithGemini(
+  private async processWithDeepSeek(
     message: string,
     context?: AssistantContext,
     history?: ConversationMessage[]
   ): Promise<AssistantResponse> {
-    const intent = await this.gemini.classifyIntent(message, context);
+    const intent = await this.deepseek.classifyIntent(message, context);
 
-    console.log('Gemini intent:', intent);
+    console.log('DeepSeek intent:', intent);
 
     if (!this.isValidIntent(intent)) {
-      const answer = await this.gemini.generateGeneralAnswer(message, history);
+      const answer = await this.deepseek.generateGeneralAnswer(message, history);
 
       return {
         message: answer,
         toolName: 'generalAnswer',
-        provider: 'gemini',
-        confidence: intent?.confidence,
+        provider: 'deepseek',
+        confidence: (intent as any)?.confidence,
       };
     }
 
     if (intent.toolName === 'generalAnswer') {
-      const answer = await this.gemini.generateGeneralAnswer(message, history);
+      const answer = await this.deepseek.generateGeneralAnswer(message, history);
 
       return {
         message: answer,
         toolName: 'generalAnswer',
-        provider: 'gemini',
+        provider: 'deepseek',
         confidence: intent.confidence,
       };
     }
 
-    const toolData = await this.executeTool(
-      intent.toolName,
-      intent.toolInput || {},
-      context,
-      message
-    );
+    const toolData = await this.executeTool(intent.toolName, intent.toolInput || {}, context, message);
 
-    const answer = await this.gemini.generateFinalAnswer(
-      message,
-      intent.toolName,
-      toolData,
-      history
-    );
+    const answer = await this.deepseek.generateFinalAnswer(message, intent.toolName, toolData, history);
 
     return {
       message: answer,
       data: toolData,
       toolName: intent.toolName,
-      provider: 'gemini',
+      provider: 'deepseek',
       confidence: intent.confidence,
     };
   }
 
-  private isValidIntent(intent: GeminiIntent | null): intent is GeminiIntent {
+  private isValidIntent(intent: DeepSeekIntent | null): intent is DeepSeekIntent {
     return !!intent?.toolName && ALLOWED_TOOLS.has(intent.toolName);
   }
 
@@ -166,11 +144,7 @@ export class AssistantService {
   ) {
     switch (toolName) {
       case 'getRecentMaintenanceRecords': {
-        const limit =
-          Number(input.limit) ||
-          this.extractNumber(originalMessage || '') ||
-          10;
-
+        const limit = Number(input.limit) || this.extractNumber(originalMessage || '') || 10;
         return this.tools.getRecentMaintenanceRecords(limit);
       }
 
@@ -179,21 +153,13 @@ export class AssistantService {
 
       case 'getAssetDetails': {
         const assetId = input.assetId || context?.assetId;
-
-        if (assetId) {
-          return this.tools.getAssetDetails(assetId);
-        }
-
+        if (assetId) return this.tools.getAssetDetails(assetId);
         return { message: 'من فضلك حدد الأصل المطلوب.' };
       }
 
       case 'getLastMaintenanceByAsset': {
         const assetId = input.assetId || context?.assetId;
-
-        if (assetId) {
-          return this.tools.getLastMaintenanceByAsset(assetId);
-        }
-
+        if (assetId) return this.tools.getLastMaintenanceByAsset(assetId);
         return { message: 'من فضلك حدد الأصل المطلوب.' };
       }
 
@@ -209,21 +175,28 @@ export class AssistantService {
       case 'getSiteMaintenanceSummary':
         return this.tools.getSiteMaintenanceSummary(input.siteName || '');
 
+      // ─── New Tools ────────────────────────────────────────────────────────
+
+      case 'getDashboardStats':
+        return this.tools.getDashboardStats();
+
+      case 'getAssetsByStatus':
+        return this.tools.getAssetsByStatus();
+
+      case 'getAssetsByType':
+        return this.tools.getAssetsByType();
+
+      case 'getMaintenanceByDateRange':
+        return this.tools.getMaintenanceByDateRange(input.fromDate, input.toDate, input.limit);
+
+      case 'getTechnicianPerformance':
+        return this.tools.getTechnicianPerformance(input.name);
+
+      case 'getChecklistSummary':
+        return this.tools.getChecklistSummary();
+
       default:
         throw new Error(`No matching tool found for: ${toolName}`);
-    }
-  }
-
-  private trySolveSimpleMath(message: string): string | null {
-    const clean = message.replace(/[^\d+\-*/().]/g, '');
-
-    if (!/[+\-*/]/.test(clean)) return null;
-
-    try {
-      const result = Function(`return (${clean})`)();
-      return `${clean} = ${result}`;
-    } catch {
-      return null;
     }
   }
 
