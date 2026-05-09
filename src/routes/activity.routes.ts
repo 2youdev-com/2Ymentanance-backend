@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.use(authenticate);
  *  - type: filter by event type (MAINTENANCE_STARTED, MAINTENANCE_COMPLETED, PROBLEM_REPORTED, REGISTRATION)
  *  - page & limit: server-side pagination
  */
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const siteId = req.query.siteId as string | undefined;
   const typeFilter = req.query.type as string | undefined;
   const page = parseInt(req.query.page as string || '1');
@@ -205,6 +206,6 @@ router.get('/', async (req, res) => {
       pages: Math.ceil(totalCount / limit),
     },
   });
-});
+}));
 
 export default router;

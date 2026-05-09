@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 import { prisma } from '../config/database';
 import { getIO } from '../utils/socket';
 import { uploadToCloudinary } from '../middleware/upload';
@@ -15,7 +16,7 @@ router.post(
     { name: 'video', maxCount: 1 },
     { name: 'audio', maxCount: 1 },
   ]),
-  async (req, res, next) => {
+  asyncHandler(async (req, res) => {
     try {
       const { assetId, category, severity, description } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -115,9 +116,9 @@ router.post(
 
       res.status(201).json({ success: true, data: report });
     } catch (err) {
-      next(err);
+      throw err;
     }
-  }
+  })
 );
 
 export default router;

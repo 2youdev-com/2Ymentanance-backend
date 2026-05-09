@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const sites =
     req.user!.role === 'ADMIN'
       ? await prisma.site.findMany()
@@ -15,9 +16,9 @@ router.get('/', async (req, res) => {
         });
 
   res.json({ success: true, data: sites });
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const site = await prisma.site.findUnique({
     where: { id: req.params.id },
     include: { _count: { select: { assets: true } } },
@@ -29,6 +30,6 @@ router.get('/:id', async (req, res) => {
   }
 
   res.json({ success: true, data: site });
-});
+}));
 
 export default router;

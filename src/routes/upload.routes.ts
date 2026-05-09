@@ -50,7 +50,7 @@ router.post(
       data: {
         timestamp,
         signature,
-        api_key:    env.CLOUDINARY_CLOUD_NAME ? env.CLOUDINARY_API_KEY : '',
+        api_key:    env.CLOUDINARY_API_KEY,
         cloud_name: env.CLOUDINARY_CLOUD_NAME,
         folder,
         resource_type,

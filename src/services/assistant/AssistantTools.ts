@@ -1,6 +1,5 @@
-import { PrismaClient, Role } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Role } from '@prisma/client';
+import { prisma } from '../../config/database';
 
 export class AssistantTools {
   private userId: string;

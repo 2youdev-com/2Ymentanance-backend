@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 import { getDashboardStats } from '../controllers/assets.controller';
 import { prisma } from '../config/database';
 import { Prisma } from '@prisma/client';
@@ -14,7 +15,7 @@ router.get('/kpi', getDashboardStats);
 // GET /api/dashboard/floor-plan
 // Returns all assets grouped by site → building → floor
 // Used by the floor plan viewer (replaces CesiumJS map for indoor assets)
-router.get('/floor-plan', async (req, res, next) => {
+router.get('/floor-plan', asyncHandler(async (req, res) => {
   try {
     const { siteId } = req.query;
 
@@ -58,13 +59,13 @@ router.get('/floor-plan', async (req, res, next) => {
 
     res.json({ success: true, data: grouped });
   } catch (err) {
-    next(err);
+    throw err;
   }
-});
+}));
 
 // GET /api/dashboard/summary
 // Returns per-site asset type breakdown for charts
-router.get('/summary', async (req, res, next) => {
+router.get('/summary', asyncHandler(async (req, res) => {
   try {
     const { siteId } = req.query;
 
@@ -110,8 +111,8 @@ router.get('/summary', async (req, res, next) => {
       },
     });
   } catch (err) {
-    next(err);
+    throw err;
   }
-});
+}));
 
 export default router;
